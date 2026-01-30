@@ -55,7 +55,6 @@ function createTable(table, rows) {
 
     db.prepare(`CREATE TABLE IF NOT EXISTS "${table}" (${columns})`).run();
 
-    const keys = Object.keys(rows[0]);
     const placeholders = keys.map(() => "?").join(",");
 
     const stmt = db.prepare(

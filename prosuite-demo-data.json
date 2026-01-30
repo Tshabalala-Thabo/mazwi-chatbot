@@ -52,10 +52,10 @@
             {"id": 3, "name": "IT Department", "site_id": 1, "floor": "5", "tenant_id": 1}
         ],
         "priority_levels": [
-            {"id": 1, "name": "Critical", "level": 1, "color": "#dc2626"},
-            {"id": 2, "name": "High", "level": 2, "color": "#f97316"},
-            {"id": 3, "name": "Medium", "level": 3, "color": "#eab308"},
-            {"id": 4, "name": "Low", "level": 4, "color": "#22c55e"}
+            {"id": 1, "name": "Critical", "level": 1, "color": "#dc2626", "tenant_id": 1},
+            {"id": 2, "name": "High", "level": 2, "color": "#f97316", "tenant_id": 1},
+            {"id": 3, "name": "Medium", "level": 3, "color": "#eab308", "tenant_id": 1},
+            {"id": 4, "name": "Low", "level": 4, "color": "#22c55e", "tenant_id": 1}
         ]
     },
     "risk": {
@@ -73,61 +73,61 @@
             {"id": 4, "name": "Data Privacy", "category_id": 4, "tenant_id": 1}
         ],
         "risk_types": [
-            {"id": 1, "name": "Strategic Objective", "prefix": "STR"},
-            {"id": 2, "name": "Operational Objective", "prefix": "OPR"}
+            {"id": 1, "name": "Strategic Objective", "prefix": "STR", "tenant_id": 1},
+            {"id": 2, "name": "Operational Objective", "prefix": "OPR", "tenant_id": 1}
         ],
         "risk_ages": [
-            {"id": 1, "name": "Emerging"},
-            {"id": 2, "name": "Recurring"},
-            {"id": 3, "name": "Retired"}
+            {"id": 1, "name": "Emerging", "tenant_id": 1},
+            {"id": 2, "name": "Recurring", "tenant_id": 1},
+            {"id": 3, "name": "Retired", "tenant_id": 1}
         ],
-        "risk_origins": [{"id": 1, "name": "Internal"}, {"id": 2, "name": "External"}, {"id": 3, "name": "Third Party"}],
-        "risk_approaches": [{"id": 1, "name": "Accept"}, {"id": 2, "name": "Mitigate"}, {"id": 3, "name": "Transfer"}, {"id": 4, "name": "Avoid"}],
+        "risk_origins": [{"id": 1, "name": "Internal", "tenant_id": 1}, {"id": 2, "name": "External", "tenant_id": 1}, {"id": 3, "name": "Third Party", "tenant_id": 1}],
+        "risk_approaches": [{"id": 1, "name": "Accept", "tenant_id": 1}, {"id": 2, "name": "Mitigate", "tenant_id": 1}, {"id": 3, "name": "Transfer", "tenant_id": 1}, {"id": 4, "name": "Avoid", "tenant_id": 1}],
         "risk_impact_rating_levels": [
-            {"id": 1, "name": "Insignificant", "value": 1, "color": "#22c55e"},
-            {"id": 2, "name": "Minor", "value": 2, "color": "#84cc16"},
-            {"id": 3, "name": "Moderate", "value": 3, "color": "#eab308"},
-            {"id": 4, "name": "Major", "value": 4, "color": "#f97316"},
-            {"id": 5, "name": "Catastrophic", "value": 5, "color": "#dc2626"}
+            {"id": 1, "name": "Insignificant", "value": 1, "color": "#22c55e", "tenant_id": 1},
+            {"id": 2, "name": "Minor", "value": 2, "color": "#84cc16", "tenant_id": 1},
+            {"id": 3, "name": "Moderate", "value": 3, "color": "#eab308", "tenant_id": 1},
+            {"id": 4, "name": "Major", "value": 4, "color": "#f97316", "tenant_id": 1},
+            {"id": 5, "name": "Catastrophic", "value": 5, "color": "#dc2626", "tenant_id": 1}
         ],
         "risk_likelihood_rating_levels": [
-            {"id": 1, "name": "Rare", "value": 1, "color": "#22c55e"},
-            {"id": 2, "name": "Unlikely", "value": 2, "color": "#84cc16"},
-            {"id": 3, "name": "Possible", "value": 3, "color": "#eab308"},
-            {"id": 4, "name": "Likely", "value": 4, "color": "#f97316"},
-            {"id": 5, "name": "Almost Certain", "value": 5, "color": "#dc2626"}
+            {"id": 1, "name": "Rare", "value": 1, "color": "#22c55e", "tenant_id": 1},
+            {"id": 2, "name": "Unlikely", "value": 2, "color": "#84cc16", "tenant_id": 1},
+            {"id": 3, "name": "Possible", "value": 3, "color": "#eab308", "tenant_id": 1},
+            {"id": 4, "name": "Likely", "value": 4, "color": "#f97316", "tenant_id": 1},
+            {"id": 5, "name": "Almost Certain", "value": 5, "color": "#dc2626", "tenant_id": 1}
         ],
         "risk_inherent_settings": [
-            {"id": 1, "name": "Low", "min_score": 1, "max_score": 6, "color": "#22c55e"},
-            {"id": 2, "name": "Medium", "min_score": 7, "max_score": 12, "color": "#eab308"},
-            {"id": 3, "name": "High", "min_score": 13, "max_score": 19, "color": "#f97316"},
-            {"id": 4, "name": "Critical", "min_score": 20, "max_score": 25, "color": "#dc2626"}
+            {"id": 1, "name": "Low", "min_score": 1, "max_score": 6, "color": "#22c55e", "tenant_id": 1},
+            {"id": 2, "name": "Medium", "min_score": 7, "max_score": 12, "color": "#eab308", "tenant_id": 1},
+            {"id": 3, "name": "High", "min_score": 13, "max_score": 19, "color": "#f97316", "tenant_id": 1},
+            {"id": 4, "name": "Critical", "min_score": 20, "max_score": 25, "color": "#dc2626", "tenant_id": 1}
         ],
         "risk_action_plan_statuses": [
-            {"id": 1, "name": "Not Started", "color": "#6b7280"},
-            {"id": 2, "name": "In Progress", "color": "#3b82f6"},
-            {"id": 3, "name": "On Hold", "color": "#f97316"},
-            {"id": 4, "name": "Completed", "color": "#22c55e"},
-            {"id": 5, "name": "Overdue", "color": "#dc2626"}
+            {"id": 1, "name": "Not Started", "color": "#6b7280", "tenant_id": 1},
+            {"id": 2, "name": "In Progress", "color": "#3b82f6", "tenant_id": 1},
+            {"id": 3, "name": "On Hold", "color": "#f97316", "tenant_id": 1},
+            {"id": 4, "name": "Completed", "color": "#22c55e", "tenant_id": 1},
+            {"id": 5, "name": "Overdue", "color": "#dc2626", "tenant_id": 1}
         ],
         "risk_action_plan_timeframes": [
-            {"id": 1, "name": "Immediate (1-7 days)", "days": 7},
-            {"id": 2, "name": "Short-term (1-4 weeks)", "days": 28},
-            {"id": 3, "name": "Medium-term (1-3 months)", "days": 90},
-            {"id": 4, "name": "Long-term (3-12 months)", "days": 365}
+            {"id": 1, "name": "Immediate (1-7 days)", "days": 7, "tenant_id": 1},
+            {"id": 2, "name": "Short-term (1-4 weeks)", "days": 28, "tenant_id": 1},
+            {"id": 3, "name": "Medium-term (1-3 months)", "days": 90, "tenant_id": 1},
+            {"id": 4, "name": "Long-term (3-12 months)", "days": 365, "tenant_id": 1}
         ],
         "risk_monitoring_frequencies": [
-            {"id": 1, "name": "Daily", "days": 1},
-            {"id": 2, "name": "Weekly", "days": 7},
-            {"id": 3, "name": "Monthly", "days": 30},
-            {"id": 4, "name": "Quarterly", "days": 90}
+            {"id": 1, "name": "Daily", "days": 1, "tenant_id": 1},
+            {"id": 2, "name": "Weekly", "days": 7, "tenant_id": 1},
+            {"id": 3, "name": "Monthly", "days": 30, "tenant_id": 1},
+            {"id": 4, "name": "Quarterly", "days": 90, "tenant_id": 1}
         ],
         "risk_control_effectiveness_levels": [
-            {"id": 1, "name": "Ineffective", "value": 0, "color": "#dc2626"},
-            {"id": 2, "name": "Partially Effective", "value": 25, "color": "#f97316"},
-            {"id": 3, "name": "Mostly Effective", "value": 50, "color": "#eab308"},
-            {"id": 4, "name": "Effective", "value": 75, "color": "#84cc16"},
-            {"id": 5, "name": "Highly Effective", "value": 100, "color": "#22c55e"}
+            {"id": 1, "name": "Ineffective", "value": 0, "color": "#dc2626", "tenant_id": 1},
+            {"id": 2, "name": "Partially Effective", "value": 25, "color": "#f97316", "tenant_id": 1},
+            {"id": 3, "name": "Mostly Effective", "value": 50, "color": "#eab308", "tenant_id": 1},
+            {"id": 4, "name": "Effective", "value": 75, "color": "#84cc16", "tenant_id": 1},
+            {"id": 5, "name": "Highly Effective", "value": 100, "color": "#22c55e", "tenant_id": 1}
         ],
         "risks": [
             {"id": 1, "tenant_id": 1, "title": "Cyber Security Breach", "description": "Unauthorized access to critical systems and potential data exfiltration through various attack vectors including phishing, malware, and exploitation of vulnerabilities", "risk_number": "R-2024-001", "risk_type_id": 2, "department_id": 4, "owner_id": 2, "category_id": 5, "sub_category_id": 3, "origin_id": 2, "association_id": null, "risk_age_id": 2, "key_performance_area_id": null, "industry_id": null, "objective_id": null, "identification_date": "2024-01-15", "causes": ["Outdated security patches", "Lack of security awareness training", "Weak password policies"], "consequences": ["Data breach affecting customer data", "Regulatory fines and penalties", "Reputational damage"], "impact_rating_id": 5, "likelihood_rating_id": 4, "inherit_risk_score": 20, "priority_id": 4, "approach_id": 2, "monitoring_frequency_id": 2, "residual_score": 12, "is_archived": false, "archived_at": null, "archived_by": null, "created_at": "2024-01-15T10:00:00Z", "updated_at": "2026-01-28T14:30:00Z"},
