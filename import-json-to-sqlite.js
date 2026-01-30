@@ -55,6 +55,7 @@ function createTable(table, rows) {
 
     db.prepare(`CREATE TABLE IF NOT EXISTS "${table}" (${columns})`).run();
 
+    const keys = Object.keys(rows[0]);
     const placeholders = keys.map(() => "?").join(",");
 
     const stmt = db.prepare(
@@ -64,72 +65,17 @@ function createTable(table, rows) {
 
     const insertMany = db.transaction(data => {
         for (const row of data) {
-            // Create values array in the same order as keys, filling missing fields with null
-            const values = keys.map(key => {
-                const value = row[key];
-                
-                if (value === undefined) {
-                    return null;
-                }
-                if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-                    return JSON.stringify(value);
-                }
-                // Ensure booleans are converted to integers
-                if (typeof value === 'boolean') {
-                    return value ? 1 : 0;
-                }
-                return value;
-            });
-            
-            try {
-                stmt.run(values);
-            } catch (error) {
-                console.error(`Error inserting into table "${table}":`, error.message);
-                console.error('Row data:', JSON.stringify(row, null, 2));
-                console.error('Processed values:', values);
-                throw error;
-            }
+            stmt.run(Object.values(row));
         }
     });
 
     insertMany(rows);
 }
 
-function normalizeTableName(prefix, key) {
-    // If no prefix, just return the key
-    if (!prefix) return key;
-    
-    // Check if key is a plural form of prefix (e.g., "asset" -> "assets")
-    // or if they share the same root word
-    const prefixLower = prefix.toLowerCase();
-    const keyLower = key.toLowerCase();
-    
-    // If key starts with prefix, just use the key (e.g., "asset" + "assets" = "assets")
-    if (keyLower.startsWith(prefixLower) || prefixLower.startsWith(keyLower)) {
-        return key;
-    }
-    
-    // Check for common plural patterns
-    const singularToPlural = {
-        [prefixLower]: keyLower,
-        [prefixLower + 's']: keyLower,
-        [prefixLower + 'es']: keyLower,
-        [prefixLower + 'ies']: keyLower.replace(/ies$/, 'y')
-    };
-    
-    // If they're related (singular/plural), just use the key
-    if (Object.values(singularToPlural).includes(keyLower)) {
-        return key;
-    }
-    
-    // Otherwise, combine them with underscore
-    return `${prefix}_${key}`;
-}
-
 function walk(obj, prefix = "") {
     for (const key in obj) {
         const value = obj[key];
-        const tableName = normalizeTableName(prefix, key);
+        const tableName = prefix ? `${prefix}_${key}` : key;
 
         if (Array.isArray(value)) {
             createTable(tableName, value);
