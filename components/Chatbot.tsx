@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { X, Send, Loader2, Maximize2, Minimize2, History, MessageSquare, Plus, Trash2, Download, Volume2, VolumeX, Settings } from 'lucide-react';
+import { X, Send, Loader2, Maximize2, Minimize2, History, MessageSquare, Plus, Trash2, Download, Volume2, VolumeX, Settings, Sparkles, TrendingUp, AlertCircle, FileText } from 'lucide-react';
 import ChatGraph from './ChatGraph';
 import jsPDF from 'jspdf';
 
@@ -42,11 +42,41 @@ export default function Chatbot() {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [selectedVoice, setSelectedVoice] = useState<string>('onyx');
     const [voiceModel, setVoiceModel] = useState<'tts-1' | 'tts-1-hd'>('tts-1');
+    const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+    const [speechBubbleType, setSpeechBubbleType] = useState<'login' | 'open'>('login');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Check if user just logged in (simulate 30-day absence)
+    useEffect(() => {
+        const lastLoginTime = localStorage.getItem('mazwi_last_login');
+        const now = Date.now();
+        
+        // If no last login or more than 30 days (simulated as always show for demo)
+        if (!lastLoginTime) {
+            // Show login speech bubble after a short delay
+            setTimeout(() => {
+                setShowSpeechBubble(true);
+                setSpeechBubbleType('login');
+            }, 1000);
+        }
+        
+        // Update last login time
+        localStorage.setItem('mazwi_last_login', now.toString());
+    }, []);
+    
+    // Show speech bubble when chatbot opens
+    useEffect(() => {
+        if (isOpen && !showSpeechBubble) {
+            setTimeout(() => {
+                setShowSpeechBubble(true);
+                setSpeechBubbleType('open');
+            }, 500);
+        }
+    }, [isOpen]);
 
     // Load conversations from localStorage on mount
     useEffect(() => {
@@ -586,6 +616,53 @@ export default function Chatbot() {
             handleSend();
         }
     };
+    
+    // Handle quick action clicks
+    const handleQuickAction = (action: string) => {
+        setShowSpeechBubble(false);
+        setIsOpen(true);
+        
+        // Set the input and send the message
+        setTimeout(() => {
+            setInput(action);
+            // Trigger send after a brief delay
+            setTimeout(() => {
+                const userMessage = action;
+                setInput('');
+                
+                const newMessages: Message[] = [
+                    ...messages,
+                    { role: 'user', content: userMessage }
+                ];
+                setMessages(newMessages);
+                setIsLoading(true);
+                
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userMessage,
+                        conversationHistory: messages.slice(-10)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        const { content, graphs } = parseGraphs(data.message);
+                        setMessages([
+                            ...newMessages,
+                            { role: 'assistant', content, graphs }
+                        ]);
+                    }
+                    setIsLoading(false);
+                })
+                .catch(error => {
+                    console.error('Chat error:', error);
+                    setIsLoading(false);
+                });
+            }, 100);
+        }, 100);
+    };
 
     return (
         <>
@@ -612,6 +689,120 @@ export default function Chatbot() {
                 </button>
             </div>
 
+            {/* Speech Bubble Notification */}
+            {showSpeechBubble && !isOpen && (
+                <div className="fixed bottom-28 right-6 z-[59] animate-bounce-in">
+                    <div className="relative bg-white rounded-2xl shadow-2xl border-2 border-[#036DAD] p-5 max-w-sm">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowSpeechBubble(false)}
+                            className="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                            aria-label="Close"
+                        >
+                            <X size={16} className="text-gray-500" />
+                        </button>
+
+                        {/* Speech bubble tail */}
+                        <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white border-r-2 border-b-2 border-[#036DAD] transform rotate-45"></div>
+
+                        {/* Content */}
+                        <div className="pr-6">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Image
+                                    src="/mazwi-static.png"
+                                    alt="Mazwi"
+                                    width={32}
+                                    height={32}
+                                    className="rounded-full"
+                                />
+                                <div>
+                                    <h3 className="font-bold text-gray-900">Mazwi</h3>
+                                    <p className="text-xs text-gray-500">Your GRC Assistant</p>
+                                </div>
+                            </div>
+
+                            {speechBubbleType === 'login' ? (
+                                <>
+                                    <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                                        👋 Welcome back! It's been a while. Let me catch you up on what's been happening with your GRC data.
+                                    </p>
+
+                                    {/* Emphasized Catchup Button */}
+                                    <button
+                                        onClick={() => handleQuickAction("Give me a comprehensive catchup on everything that's happened in the last 30 days - new risks, incidents, compliance changes, and key metrics")}
+                                        className="w-full mb-3 px-4 py-3 bg-gradient-to-r from-[#036DAD] to-[#0284c7] text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
+                                    >
+                                        <Sparkles size={18} />
+                                        <span>📊 Get 30-Day Catchup</span>
+                                    </button>
+
+                                    {/* Quick Actions */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-gray-600 mb-2">Or explore:</p>
+                                        
+                                        <button
+                                            onClick={() => handleQuickAction("Show me the latest critical risks")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-red-50 to-red-100 text-red-700 rounded-lg text-sm font-medium hover:from-red-100 hover:to-red-200 transition-all duration-200 flex items-center gap-2 border border-red-200"
+                                        >
+                                            <AlertCircle size={16} />
+                                            <span>Critical Risks</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction("What's my current compliance status?")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-lg text-sm font-medium hover:from-green-100 hover:to-green-200 transition-all duration-200 flex items-center gap-2 border border-green-200"
+                                        >
+                                            <FileText size={16} />
+                                            <span>Compliance Status</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction("Show me key trends and insights")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:from-purple-100 hover:to-purple-200 transition-all duration-200 flex items-center gap-2 border border-purple-200"
+                                        >
+                                            <TrendingUp size={16} />
+                                            <span>Trends & Insights</span>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                                        💡 How can I help you today?
+                                    </p>
+
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={() => handleQuickAction("Show me my risk dashboard")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:from-blue-100 hover:to-blue-200 transition-all duration-200 flex items-center gap-2 border border-blue-200"
+                                        >
+                                            <AlertCircle size={16} />
+                                            <span>Risk Dashboard</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction("What incidents need my attention?")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:from-orange-100 hover:to-orange-200 transition-all duration-200 flex items-center gap-2 border border-orange-200"
+                                        >
+                                            <AlertCircle size={16} />
+                                            <span>Active Incidents</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction("Show me compliance overview")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-lg text-sm font-medium hover:from-green-100 hover:to-green-200 transition-all duration-200 flex items-center gap-2 border border-green-200"
+                                        >
+                                            <FileText size={16} />
+                                            <span>Compliance Overview</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
         @keyframes pulse-ring {
           0% {
@@ -630,6 +821,24 @@ export default function Chatbot() {
         
         .animate-pulse-ring {
           animation: pulse-ring 2s ease-out;
+        }
+        
+        @keyframes bounce-in {
+          0% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+          }
+          50% {
+            transform: translateY(-5px) scale(1.02);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        .animate-bounce-in {
+          animation: bounce-in 0.5s ease-out;
         }
       `}</style>
 

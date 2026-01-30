@@ -73,6 +73,9 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
+      // Clear Mazwi last login timestamp so speech bubble shows on next login
+      localStorage.removeItem('mazwi_last_login');
+      
       await fetch('/api/auth/logout', { method: 'POST' });
       router.push('/login');
     } catch (error) {
