@@ -17,7 +17,7 @@ export async function GET() {
     
     // Get dashboard statistics
     const stats = {
-      totalRisks: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND is_archived = 0').get(user.tenant_id) as { count: number },
+      totalRisks: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL)').get(user.tenant_id) as { count: number },
       totalAssets: db.prepare('SELECT COUNT(*) as count FROM assets WHERE tenant_id = ?').get(user.tenant_id) as { count: number },
       totalIncidents: db.prepare('SELECT COUNT(*) as count FROM incidents WHERE tenant_id = ?').get(user.tenant_id) as { count: number },
       activeAudits: db.prepare('SELECT COUNT(*) as count FROM audit_engagements WHERE tenant_id = ? AND status_id IN (1, 2)').get(user.tenant_id) as { count: number },
@@ -29,7 +29,7 @@ export async function GET() {
     const recentRisks = db.prepare(`
       SELECT id, title, risk_number, inherit_risk_score, residual_score 
       FROM risks 
-      WHERE tenant_id = ? AND is_archived = 0 
+      WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL)
       ORDER BY updated_at DESC 
       LIMIT 5
     `).all(user.tenant_id);

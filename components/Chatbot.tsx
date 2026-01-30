@@ -3,10 +3,18 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { X, Send, Loader2 } from 'lucide-react';
+import ChatGraph from './ChatGraph';
+
+interface GraphData {
+  type: 'bar' | 'pie' | 'line';
+  title: string;
+  data: Array<{ name: string; value: number }>;
+}
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  graphs?: GraphData[];
 }
 
 export default function Chatbot() {
@@ -76,6 +84,34 @@ export default function Chatbot() {
     }
   }, [isOpen, messages.length]);
 
+  // Parse graphs from AI response
+  const parseGraphs = (content: string): { content: string; graphs: GraphData[] } => {
+    const graphs: GraphData[] = [];
+    let cleanContent = content;
+
+    // Match [GRAPH:type:title]...data...[/GRAPH]
+    const graphRegex = /\[GRAPH:(bar|pie|line):([^\]]+)\]\s*(\[[\s\S]*?\])\s*\[\/GRAPH\]/g;
+    let match;
+
+    while ((match = graphRegex.exec(content)) !== null) {
+      try {
+        const type = match[1] as 'bar' | 'pie' | 'line';
+        const title = match[2].trim();
+        const dataStr = match[3];
+        const data = JSON.parse(dataStr);
+
+        graphs.push({ type, title, data });
+        
+        // Remove graph marker from content
+        cleanContent = cleanContent.replace(match[0], '');
+      } catch (error) {
+        console.error('Failed to parse graph:', error);
+      }
+    }
+
+    return { content: cleanContent.trim(), graphs };
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -106,10 +142,13 @@ export default function Chatbot() {
         throw new Error(data.error || 'Failed to get response');
       }
 
-      // Add assistant response
+      // Parse graphs from response
+      const { content, graphs } = parseGraphs(data.message);
+
+      // Add assistant response with graphs
       setMessages([
         ...newMessages,
-        { role: 'assistant', content: data.message }
+        { role: 'assistant', content, graphs }
       ]);
     } catch (error: any) {
       console.error('Chat error:', error);
@@ -214,13 +253,36 @@ export default function Chatbot() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-[#036DAD] text-white rounded-br-sm'
-                      : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-200'
+                  className={`max-w-[80%] ${
+                    message.role === 'user' ? '' : 'w-full'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  {/* Graphs (only for assistant messages) */}
+                  {message.role === 'assistant' && message.graphs && message.graphs.length > 0 && (
+                    <div className="mb-2">
+                      {message.graphs.map((graph, graphIndex) => (
+                        <ChatGraph
+                          key={graphIndex}
+                          type={graph.type}
+                          title={graph.title}
+                          data={graph.data}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Message content */}
+                  {message.content && (
+                    <div
+                      className={`rounded-2xl px-4 py-3 ${
+                        message.role === 'user'
+                          ? 'bg-[#036DAD] text-white rounded-br-sm'
+                          : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-200'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

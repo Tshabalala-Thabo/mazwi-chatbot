@@ -17,9 +17,9 @@ export function getTenantData(tenantId: number) {
     // Get statistics across all modules
     const stats = {
       risks: {
-        total: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND is_archived = 0').get(tenantId) as { count: number },
-        critical: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND is_archived = 0 AND inherit_risk_score >= 20').get(tenantId) as { count: number },
-        high: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND is_archived = 0 AND inherit_risk_score >= 13 AND inherit_risk_score < 20').get(tenantId) as { count: number },
+        total: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL)').get(tenantId) as { count: number },
+        critical: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL) AND inherit_risk_score >= 20').get(tenantId) as { count: number },
+        high: db.prepare('SELECT COUNT(*) as count FROM risks WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL) AND inherit_risk_score >= 13 AND inherit_risk_score < 20').get(tenantId) as { count: number },
       },
       assets: {
         total: db.prepare('SELECT COUNT(*) as count FROM assets WHERE tenant_id = ?').get(tenantId) as { count: number },
@@ -67,7 +67,7 @@ export function queryTenantData(tenantId: number, query: string) {
         SELECT id, title, risk_number, inherit_risk_score, residual_score, 
                identification_date, updated_at
         FROM risks 
-        WHERE tenant_id = ? AND is_archived = 0 
+        WHERE tenant_id = ? AND (is_archived = 0 OR is_archived = 0.0 OR is_archived IS NULL)
         ORDER BY inherit_risk_score DESC 
         LIMIT 10
       `).all(tenantId);
@@ -170,11 +170,37 @@ YOUR CAPABILITIES:
 - Help users understand their compliance status, risk exposure, and audit findings
 - Suggest actions based on the data
 - Explain GRC concepts and best practices
+- **VISUALIZE DATA WITH GRAPHS** when showing statistics, trends, distributions, or comparisons
 
-IMPORTANT:
+GRAPH VISUALIZATION:
+When presenting data that would benefit from visualization (statistics, comparisons, distributions, trends), you MUST include a special graph marker in your response using this EXACT format:
+
+[GRAPH:type:title]
+{json data}
+[/GRAPH]
+
+Supported graph types:
+- bar: For comparing categories (e.g., risks by department, assets by category)
+- pie: For showing distributions (e.g., risk severity breakdown, incident status)
+- line: For showing trends over time (e.g., incidents per month)
+
+Example for risk severity distribution:
+[GRAPH:pie:Risk Severity Distribution]
+[{"name":"Critical","value":5},{"name":"High","value":12},{"name":"Medium","value":23},{"name":"Low","value":8}]
+[/GRAPH]
+
+Example for assets by category:
+[GRAPH:bar:Assets by Category]
+[{"name":"IT Equipment","value":45},{"name":"Furniture","value":23},{"name":"Vehicles","value":8}]
+[/GRAPH]
+
+IMPORTANT RULES:
+- ALWAYS use graphs when showing statistics, comparisons, or distributions
+- Place the graph marker BEFORE your text explanation
+- Use clear, descriptive titles
+- Keep data arrays concise (max 10 items)
 - Only provide information about ${context.tenantName}'s data
 - Be concise and professional
-- If you need specific data to answer a question, it will be provided in the context
 - Always cite specific numbers and data points when available
 - Suggest actionable next steps when appropriate`;
 }
