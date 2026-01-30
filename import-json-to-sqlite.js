@@ -64,7 +64,16 @@ function createTable(table, rows) {
 
     const insertMany = db.transaction(data => {
         for (const row of data) {
-            stmt.run(Object.values(row));
+            // Convert arrays and objects to JSON strings
+            const values = keys.map(key => {
+                const value = row[key];
+                if (value === undefined) return null;
+                if (value === null) return null;
+                if (typeof value === 'object') return JSON.stringify(value);
+                if (typeof value === 'boolean') return value ? 1 : 0;
+                return value;
+            });
+            stmt.run(values);
         }
     });
 
@@ -74,7 +83,21 @@ function createTable(table, rows) {
 function walk(obj, prefix = "") {
     for (const key in obj) {
         const value = obj[key];
-        const tableName = prefix ? `${prefix}_${key}` : key;
+        
+        // Avoid duplicate prefixes in table names
+        let tableName;
+        if (!prefix) {
+            tableName = key;
+        } else if (key.startsWith(prefix + "_")) {
+            // If key already starts with prefix, use key as-is
+            tableName = key;
+        } else if (key === prefix || key === prefix + "s" || prefix === key + "s") {
+            // If key is singular/plural of prefix, use the key
+            tableName = key;
+        } else {
+            // Otherwise, combine prefix and key
+            tableName = `${prefix}_${key}`;
+        }
 
         if (Array.isArray(value)) {
             createTable(tableName, value);
