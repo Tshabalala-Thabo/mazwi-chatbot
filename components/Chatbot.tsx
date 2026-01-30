@@ -43,8 +43,9 @@ export default function Chatbot() {
     const [selectedVoice, setSelectedVoice] = useState<string>('onyx');
     const [voiceModel, setVoiceModel] = useState<'tts-1' | 'tts-1-hd'>('tts-1');
     const [showSpeechBubble, setShowSpeechBubble] = useState(false);
-    const [speechBubbleType, setSpeechBubbleType] = useState<'login' | 'open' | 'risk_created'>('login');
+    const [speechBubbleType, setSpeechBubbleType] = useState<'login' | 'open' | 'risk_created' | 'form_assistance'>('login');
     const [createdRiskData, setCreatedRiskData] = useState<any>(null);
+    const [formType, setFormType] = useState<string>('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -69,15 +70,15 @@ export default function Chatbot() {
         localStorage.setItem('mazwi_last_login', now.toString());
     }, []);
     
-    // Show speech bubble when chatbot opens
-    useEffect(() => {
-        if (isOpen && !showSpeechBubble) {
-            setTimeout(() => {
-                setShowSpeechBubble(true);
-                setSpeechBubbleType('open');
-            }, 500);
-        }
-    }, [isOpen]);
+    // Show speech bubble when chatbot opens - DISABLED
+    // useEffect(() => {
+    //     if (isOpen && !showSpeechBubble) {
+    //         setTimeout(() => {
+    //             setShowSpeechBubble(true);
+    //             setSpeechBubbleType('open');
+    //         }, 500);
+    //     }
+    // }, [isOpen]);
 
     // Listen for risk creation events
     useEffect(() => {
@@ -102,6 +103,96 @@ export default function Chatbot() {
             window.removeEventListener('riskCreated' as any, handleRiskCreated as any);
         };
     }, []);
+
+    // Listen for form open events
+    useEffect(() => {
+        const handleFormOpened = (event: CustomEvent) => {
+            const { formType: type } = event.detail;
+            setFormType(type);
+            setShowSpeechBubble(true);
+            setSpeechBubbleType('form_assistance');
+            setIsAnimated(true);
+            setIsPulsing(true);
+            
+            // Reset animation after delay
+            setTimeout(() => {
+                setIsAnimated(false);
+                setIsPulsing(false);
+            }, 3000);
+        };
+
+        window.addEventListener('formOpened' as any, handleFormOpened as any);
+        
+        return () => {
+            window.removeEventListener('formOpened' as any, handleFormOpened as any);
+        };
+    }, []);
+
+    // Listen for AI field assistance events
+    useEffect(() => {
+        const handleAiFieldAssist = (event: CustomEvent) => {
+            const { query, fieldName, fieldLabel } = event.detail;
+            
+            // Open chatbot if not already open
+            setIsOpen(true);
+            
+            // Close any speech bubbles
+            setShowSpeechBubble(false);
+            
+            // Set the input and send the message automatically
+            setInput(query);
+            
+            // Send the query after a brief delay
+            setTimeout(() => {
+                const userMessage = query;
+                setInput('');
+                
+                const newMessages: Message[] = [
+                    ...messages,
+                    { role: 'user', content: userMessage }
+                ];
+                setMessages(newMessages);
+                setIsLoading(true);
+                
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userMessage,
+                        conversationHistory: messages.slice(-10)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        const { content, graphs } = parseGraphs(data.message);
+                        setMessages([
+                            ...newMessages,
+                            { role: 'assistant', content, graphs }
+                        ]);
+                    }
+                    setIsLoading(false);
+                })
+                .catch(error => {
+                    console.error('Chat error:', error);
+                    setMessages([
+                        ...newMessages,
+                        {
+                            role: 'assistant',
+                            content: `Sorry, I encountered an error: ${error.message}. Please make sure your OpenAI API key is configured.`
+                        }
+                    ]);
+                    setIsLoading(false);
+                });
+            }, 100);
+        };
+
+        window.addEventListener('aiFieldAssist' as any, handleAiFieldAssist as any);
+        
+        return () => {
+            window.removeEventListener('aiFieldAssist' as any, handleAiFieldAssist as any);
+        };
+    }, [messages]);
 
     // Load conversations from localStorage on mount
     useEffect(() => {
@@ -920,6 +1011,60 @@ export default function Chatbot() {
                                         >
                                             <AlertCircle size={16} />
                                             <span>Updated Risk Overview</span>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : speechBubbleType === 'form_assistance' ? (
+                                <>
+                                    <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                                        👋 <strong>Need Help Filling Out This Form?</strong>
+                                    </p>
+                                    
+                                    <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                                        I'm here to assist you with capturing {formType === 'risk' ? 'risk' : formType === 'asset' ? 'asset' : 'this'} information. I can help you with:
+                                    </p>
+
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-3 border border-blue-200">
+                                        <ul className="text-sm text-gray-700 space-y-1">
+                                            <li>✓ Suggesting appropriate categories and classifications</li>
+                                            <li>✓ Providing examples and best practices</li>
+                                            <li>✓ Explaining field requirements</li>
+                                            <li>✓ Offering guidance on data entry</li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Quick Actions */}
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={() => handleQuickAction(`I'm filling out a ${formType} form. Can you help me understand what information I need to provide and suggest best practices for completing it?`)}
+                                            className="w-full px-3 py-2.5 bg-gradient-to-r from-[#036DAD] to-[#0284c7] text-white rounded-lg text-sm font-semibold hover:from-[#025a8d] hover:to-[#036DAD] transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
+                                        >
+                                            <Sparkles size={16} />
+                                            <span>Get Form Guidance</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction(`What are the key fields I should focus on when creating a new ${formType}? What information is most critical?`)}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:from-purple-100 hover:to-purple-200 transition-all duration-200 flex items-center gap-2 border border-purple-200"
+                                        >
+                                            <FileText size={16} />
+                                            <span>Key Fields to Focus On</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction(`Can you provide examples of well-documented ${formType}s to help me understand what good data entry looks like?`)}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-lg text-sm font-medium hover:from-green-100 hover:to-green-200 transition-all duration-200 flex items-center gap-2 border border-green-200"
+                                        >
+                                            <MessageSquare size={16} />
+                                            <span>Show Examples</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction(`What are common mistakes people make when creating ${formType}s and how can I avoid them?`)}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:from-orange-100 hover:to-orange-200 transition-all duration-200 flex items-center gap-2 border border-orange-200"
+                                        >
+                                            <AlertCircle size={16} />
+                                            <span>Common Mistakes to Avoid</span>
                                         </button>
                                     </div>
                                 </>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, TrendingUp, Filter, Search, Eye, X, Plus } from 'lucide-react';
+import { Shield, AlertTriangle, TrendingUp, Filter, Search, Eye, X, Plus, Sparkles, HelpCircle } from 'lucide-react';
 
 interface Risk {
   id: number;
@@ -95,6 +95,7 @@ export default function RiskManagementPage() {
   const [showModal, setShowModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formOptions, setFormOptions] = useState<any>(null);
+  const [aiAssistMode, setAiAssistMode] = useState(false);
   const [formData, setFormData] = useState<RiskFormData>({
     title: '',
     description: '',
@@ -197,6 +198,67 @@ export default function RiskManagementPage() {
       fetchFormOptions();
     }
     setShowCreateModal(true);
+    
+    // Dispatch event to notify chatbot
+    const formOpenEvent = new CustomEvent('formOpened', {
+      detail: { formType: 'risk' }
+    });
+    window.dispatchEvent(formOpenEvent);
+  };
+
+  const handleAiFieldAssist = (fieldName: string, action: 'explain' | 'suggest' | 'review') => {
+    const fieldLabels: Record<string, string> = {
+      title: 'Risk Title',
+      description: 'Risk Description',
+      risk_type_id: 'Risk Type',
+      category_id: 'Risk Category',
+      sub_category_id: 'Sub-Category',
+      impact_rating_id: 'Impact Rating',
+      likelihood_rating_id: 'Likelihood Rating',
+      priority_id: 'Priority',
+      risk_age_id: 'Risk Age',
+      department_id: 'Department',
+      owner_id: 'Risk Owner',
+      origin_id: 'Origin',
+      approach_id: 'Approach',
+      monitoring_frequency_id: 'Monitoring Frequency',
+      identification_date: 'Identification Date'
+    };
+
+    const fieldLabel = fieldLabels[fieldName] || fieldName;
+    const currentValue = formData[fieldName as keyof RiskFormData];
+
+    // Build context from filled fields
+    const filledFields: string[] = [];
+    if (formData.title) filledFields.push(`Title: "${formData.title}"`);
+    if (formData.description) filledFields.push(`Description: "${formData.description}"`);
+    if (formData.category_id && formOptions) {
+      const cat = formOptions.categories.find((c: any) => c.id === parseInt(formData.category_id));
+      if (cat) filledFields.push(`Category: ${cat.name}`);
+    }
+    if (formData.department_id && formOptions) {
+      const dept = formOptions.departments.find((d: any) => d.id === parseInt(formData.department_id));
+      if (dept) filledFields.push(`Department: ${dept.name}`);
+    }
+
+    const contextInfo = filledFields.length > 0 
+      ? `\n\nContext - Here's what I've filled so far:\n${filledFields.join('\n')}` 
+      : '';
+
+    let query = '';
+    if (action === 'explain') {
+      query = `Explain what the "${fieldLabel}" field means in a risk register and what kind of information should I provide?${contextInfo}`;
+    } else if (action === 'suggest') {
+      query = `I'm filling out the "${fieldLabel}" field for a risk. ${currentValue ? `My current input is: "${currentValue}". ` : ''}Can you suggest appropriate values or provide examples based on the context?${contextInfo}`;
+    } else if (action === 'review') {
+      query = `Review my input for the "${fieldLabel}" field: "${currentValue}". Is this appropriate given the context? Any suggestions for improvement?${contextInfo}`;
+    }
+
+    // Dispatch event to open chatbot with query
+    const aiAssistEvent = new CustomEvent('aiFieldAssist', {
+      detail: { query, fieldName, fieldLabel }
+    });
+    window.dispatchEvent(aiAssistEvent);
   };
 
   const closeCreateModal = () => {
@@ -806,12 +868,26 @@ export default function RiskManagementPage() {
                   <p className="text-sm text-gray-500">Add a new risk to the register</p>
                 </div>
               </div>
-              <button
-                onClick={closeCreateModal}
-                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <X size={24} className="text-gray-600" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAiAssistMode(!aiAssistMode)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                    aiAssistMode 
+                      ? 'bg-gradient-to-r from-[#036DAD] to-[#0284c7] text-white shadow-md' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <Sparkles size={18} />
+                  <span className="text-sm font-medium">AI Assist</span>
+                </button>
+                <button
+                  onClick={closeCreateModal}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X size={24} className="text-gray-600" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Content */}
@@ -822,42 +898,91 @@ export default function RiskManagementPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Risk Title <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Risk Title <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleAiFieldAssist('title', 'explain')}
+                              className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors"
+                              title="What's this?"
+                            >
+                              <HelpCircle size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAiFieldAssist('title', 'suggest')}
+                              className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors"
+                              title="Get suggestions"
+                            >
+                              <Sparkles size={16} />
+                            </button>
+                            {formData.title && (
+                              <button
+                                type="button"
+                                onClick={() => handleAiFieldAssist('title', 'review')}
+                                className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors"
+                                title="Review my input"
+                              >
+                                <Eye size={16} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <input
                         type="text"
                         required
                         value={formData.title}
                         onChange={(e) => handleInputChange('title', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                         placeholder="Enter risk title"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Description <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('description', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('description', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                            {formData.description && <button type="button" onClick={() => handleAiFieldAssist('description', 'review')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Review my input"><Eye size={16} /></button>}
+                          </div>
+                        )}
+                      </div>
                       <textarea
                         required
                         rows={3}
                         value={formData.description}
                         onChange={(e) => handleInputChange('description', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                         placeholder="Describe the risk in detail"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Risk Type <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Risk Type <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('risk_type_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('risk_type_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.risk_type_id}
                         onChange={(e) => handleInputChange('risk_type_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select type</option>
                         {formOptions.types.map((type: FormOption) => (
@@ -867,14 +992,22 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Category <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('category_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('category_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.category_id}
                         onChange={(e) => handleInputChange('category_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select category</option>
                         {formOptions.categories.map((cat: FormOption) => (
@@ -884,13 +1017,21 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sub-Category
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Sub-Category
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('sub_category_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('sub_category_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.sub_category_id}
                         onChange={(e) => handleInputChange('sub_category_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select sub-category</option>
                         {formOptions.subCategories
@@ -902,14 +1043,22 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Identification Date
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Identification Date
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('identification_date', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('identification_date', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <input
                         type="date"
                         value={formData.identification_date}
                         onChange={(e) => handleInputChange('identification_date', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       />
                     </div>
                   </div>
@@ -920,14 +1069,22 @@ export default function RiskManagementPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Assessment</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Impact Rating <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Impact Rating <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('impact_rating_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('impact_rating_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.impact_rating_id}
                         onChange={(e) => handleInputChange('impact_rating_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select impact</option>
                         {formOptions.impactLevels.map((level: FormOption) => (
@@ -939,14 +1096,22 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Likelihood Rating <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Likelihood Rating <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('likelihood_rating_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('likelihood_rating_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.likelihood_rating_id}
                         onChange={(e) => handleInputChange('likelihood_rating_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select likelihood</option>
                         {formOptions.likelihoodLevels.map((level: FormOption) => (
@@ -958,13 +1123,21 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Priority
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Priority
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('priority_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('priority_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.priority_id}
                         onChange={(e) => handleInputChange('priority_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select priority</option>
                         {formOptions.priorities.map((priority: FormOption) => (
@@ -974,13 +1147,21 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Risk Age
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Risk Age
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('risk_age_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('risk_age_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.risk_age_id}
                         onChange={(e) => handleInputChange('risk_age_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select age</option>
                         {formOptions.ages.map((age: FormOption) => (
@@ -1003,7 +1184,7 @@ export default function RiskManagementPage() {
                         required
                         value={formData.department_id}
                         onChange={(e) => handleInputChange('department_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select department</option>
                         {formOptions.departments.map((dept: FormOption) => (
@@ -1020,7 +1201,7 @@ export default function RiskManagementPage() {
                         required
                         value={formData.owner_id}
                         onChange={(e) => handleInputChange('owner_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select owner</option>
                         {formOptions.users.map((user: FormOption) => (
@@ -1038,7 +1219,7 @@ export default function RiskManagementPage() {
                       <select
                         value={formData.origin_id}
                         onChange={(e) => handleInputChange('origin_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select origin</option>
                         {formOptions.origins.map((origin: FormOption) => (
@@ -1054,7 +1235,7 @@ export default function RiskManagementPage() {
                       <select
                         value={formData.approach_id}
                         onChange={(e) => handleInputChange('approach_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select approach</option>
                         {formOptions.approaches.map((approach: FormOption) => (
@@ -1070,7 +1251,7 @@ export default function RiskManagementPage() {
                       <select
                         value={formData.monitoring_frequency_id}
                         onChange={(e) => handleInputChange('monitoring_frequency_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900"
                       >
                         <option value="">Select frequency</option>
                         {formOptions.monitoringFrequencies.map((freq: FormOption) => (
@@ -1091,7 +1272,7 @@ export default function RiskManagementPage() {
                           type="text"
                           value={cause}
                           onChange={(e) => handleArrayChange('causes', index, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                           placeholder="Enter a root cause"
                         />
                         {formData.causes.length > 1 && (
@@ -1125,7 +1306,7 @@ export default function RiskManagementPage() {
                           type="text"
                           value={consequence}
                           onChange={(e) => handleArrayChange('consequences', index, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#036DAD] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                           placeholder="Enter a potential consequence"
                         />
                         {formData.consequences.length > 1 && (
