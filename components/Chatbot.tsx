@@ -15,7 +15,10 @@ export default function Chatbot() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAnimated, setIsAnimated] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Toggle between animated and static icon
   useEffect(() => {
@@ -26,10 +29,35 @@ export default function Chatbot() {
       setTimeout(() => {
         setIsAnimated(false);
       }, 2000);
-    }, 10000); // Total cycle: 10 seconds (2s animated + 8s static)
+    }, 8000); // Total cycle: 10 seconds (2s animated + 8s static)
 
     return () => clearInterval(interval);
   }, []);
+
+  // Handle hover to play animation and pulse
+  const handleMouseEnter = () => {
+    // Clear any existing timeouts
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+    if (pulseTimeoutRef.current) {
+      clearTimeout(pulseTimeoutRef.current);
+    }
+    
+    // Show animated version and pulse
+    setIsAnimated(true);
+    setIsPulsing(true);
+    
+    // Set timeout to return to static after 2 seconds
+    animationTimeoutRef.current = setTimeout(() => {
+      setIsAnimated(false);
+    }, 2000);
+    
+    // Stop pulsing after 2 seconds
+    pulseTimeoutRef.current = setTimeout(() => {
+      setIsPulsing(false);
+    }, 2000);
+  };
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -107,20 +135,49 @@ export default function Chatbot() {
   return (
     <>
       {/* Chatbot Icon Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-[#036DAD]/50"
-        aria-label="Open chatbot"
-      >
-        <Image
-          src={isAnimated ? '/mazwi-animated.gif' : '/mazwi-static.png'}
-          alt="Mazwi Chatbot"
-          width={64}
-          height={64}
-          className="rounded-full"
-          priority
-        />
-      </button>
+      <div className="fixed bottom-6 right-6 z-50 w-16 h-16">
+        {/* Pulsing ring effect */}
+        {isPulsing && (
+          <div className="absolute inset-0 w-16 h-16 rounded-full animate-pulse-ring" />
+        )}
+        
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          onMouseEnter={handleMouseEnter}
+          className="relative w-16 h-16 rounded-full shadow-2xl transition-shadow duration-200 focus:outline-none focus:ring-4 focus:ring-[#036DAD]/50 hover:shadow-3xl"
+          aria-label="Open chatbot"
+        >
+          <Image
+            src={isAnimated ? '/mazwi-animated.gif' : '/mazwi-static.png'}
+            alt="Mazwi Chatbot"
+            width={64}
+            height={64}
+            className="rounded-full"
+            priority
+          />
+        </button>
+      </div>
+      
+      <style jsx>{`
+        @keyframes pulse-ring {
+          0% {
+            box-shadow: 0 0 0 0 rgba(3, 109, 173, 0.7);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 0 20px rgba(3, 109, 173, 0);
+            transform: scale(1.3);
+          }
+          100% {
+            box-shadow: 0 0 0 20px rgba(3, 109, 173, 0);
+            transform: scale(1.3);
+          }
+        }
+        
+        .animate-pulse-ring {
+          animation: pulse-ring 2s ease-out;
+        }
+      `}</style>
 
       {/* Chatbot Window */}
       {isOpen && (
