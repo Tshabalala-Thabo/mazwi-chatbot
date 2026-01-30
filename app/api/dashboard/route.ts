@@ -36,6 +36,9 @@ export async function GET() {
 
     // Get tenant info
     const tenant = db.prepare('SELECT * FROM core_tenants WHERE id = ?').get(user.tenant_id);
+    
+    // Get user info
+    const userInfo = db.prepare('SELECT id, name, email FROM core_users WHERE id = ?').get(user.id);
 
     return NextResponse.json({
       stats: {
@@ -47,7 +50,8 @@ export async function GET() {
         activePolicies: stats.activePolicies.count
       },
       recentRisks,
-      tenant
+      tenant,
+      user: userInfo
     });
   } catch (error) {
     console.error('Dashboard error:', error);
