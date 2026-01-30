@@ -43,7 +43,8 @@ export default function Chatbot() {
     const [selectedVoice, setSelectedVoice] = useState<string>('onyx');
     const [voiceModel, setVoiceModel] = useState<'tts-1' | 'tts-1-hd'>('tts-1');
     const [showSpeechBubble, setShowSpeechBubble] = useState(false);
-    const [speechBubbleType, setSpeechBubbleType] = useState<'login' | 'open'>('login');
+    const [speechBubbleType, setSpeechBubbleType] = useState<'login' | 'open' | 'risk_created'>('login');
+    const [createdRiskData, setCreatedRiskData] = useState<any>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,6 +78,30 @@ export default function Chatbot() {
             }, 500);
         }
     }, [isOpen]);
+
+    // Listen for risk creation events
+    useEffect(() => {
+        const handleRiskCreated = (event: CustomEvent) => {
+            const riskData = event.detail;
+            setCreatedRiskData(riskData);
+            setShowSpeechBubble(true);
+            setSpeechBubbleType('risk_created');
+            setIsAnimated(true);
+            setIsPulsing(true);
+            
+            // Reset animation after delay
+            setTimeout(() => {
+                setIsAnimated(false);
+                setIsPulsing(false);
+            }, 3000);
+        };
+
+        window.addEventListener('riskCreated' as any, handleRiskCreated as any);
+        
+        return () => {
+            window.removeEventListener('riskCreated' as any, handleRiskCreated as any);
+        };
+    }, []);
 
     // Load conversations from localStorage on mount
     useEffect(() => {
@@ -427,19 +452,88 @@ export default function Chatbot() {
             }
             yPosition += 7;
 
-            // Message content
+            // Message content with Markdown formatting
             pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
             pdf.setTextColor(0);
 
-            const lines = pdf.splitTextToSize(message.content, maxWidth);
-            lines.forEach((line: string) => {
+            // Parse and format Markdown content
+            const contentLines = message.content.split('\n');
+            contentLines.forEach((line: string) => {
                 if (yPosition > pageHeight - 30) {
                     pdf.addPage();
                     yPosition = margin;
                 }
-                pdf.text(line, margin, yPosition);
-                yPosition += 5;
+
+                // Handle headings (###)
+                if (line.startsWith('### ')) {
+                    pdf.setFontSize(12);
+                    pdf.setFont('helvetica', 'bold');
+                    const headingText = line.replace(/^###\s*/, '');
+                    const headingLines = pdf.splitTextToSize(headingText, maxWidth);
+                    headingLines.forEach((hLine: string) => {
+                        if (yPosition > pageHeight - 30) {
+                            pdf.addPage();
+                            yPosition = margin;
+                        }
+                        pdf.text(hLine, margin, yPosition);
+                        yPosition += 6;
+                    });
+                    yPosition += 2; // Extra spacing after heading
+                    return;
+                }
+
+                // Handle bold text (**)
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                
+                if (line.includes('**')) {
+                    // Split by bold markers
+                    const parts = line.split(/\*\*([^*]+)\*\*/g);
+                    let xPosition = margin;
+                    
+                    parts.forEach((part, idx) => {
+                        if (part) {
+                            // Odd indices are bold text
+                            if (idx % 2 === 1) {
+                                pdf.setFont('helvetica', 'bold');
+                            } else {
+                                pdf.setFont('helvetica', 'normal');
+                            }
+                            
+                            const partLines = pdf.splitTextToSize(part, maxWidth - (xPosition - margin));
+                            partLines.forEach((pLine: string, pIdx: number) => {
+                                if (yPosition > pageHeight - 30) {
+                                    pdf.addPage();
+                                    yPosition = margin;
+                                    xPosition = margin;
+                                }
+                                pdf.text(pLine, xPosition, yPosition);
+                                if (pIdx < partLines.length - 1) {
+                                    yPosition += 5;
+                                    xPosition = margin;
+                                } else {
+                                    xPosition += pdf.getTextWidth(pLine);
+                                }
+                            });
+                        }
+                    });
+                    yPosition += 5;
+                } else {
+                    // Regular text
+                    if (line.trim()) {
+                        const textLines = pdf.splitTextToSize(line, maxWidth);
+                        textLines.forEach((tLine: string) => {
+                            if (yPosition > pageHeight - 30) {
+                                pdf.addPage();
+                                yPosition = margin;
+                            }
+                            pdf.text(tLine, margin, yPosition);
+                            yPosition += 5;
+                        });
+                    } else {
+                        yPosition += 3; // Empty line spacing
+                    }
+                }
             });
 
             // Add graph info if present
@@ -762,6 +856,70 @@ export default function Chatbot() {
                                         >
                                             <TrendingUp size={16} />
                                             <span>Trends & Insights</span>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : speechBubbleType === 'risk_created' && createdRiskData ? (
+                                <>
+                                    <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                                        🎯 <strong>Risk Created Successfully!</strong>
+                                    </p>
+                                    
+                                    {/* Risk Summary */}
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-3 border border-blue-200">
+                                        <p className="text-xs font-semibold text-gray-600 mb-1">Risk ID: {createdRiskData.risk_number}</p>
+                                        <p className="text-sm font-medium text-gray-900">{createdRiskData.title}</p>
+                                        {createdRiskData.inherent_score && (
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <span className="text-xs text-gray-600">Inherent Score:</span>
+                                                <span className={`text-sm font-bold ${
+                                                    createdRiskData.inherent_score >= 20 ? 'text-red-600' :
+                                                    createdRiskData.inherent_score >= 13 ? 'text-orange-600' :
+                                                    createdRiskData.inherent_score >= 7 ? 'text-yellow-600' :
+                                                    'text-green-600'
+                                                }`}>
+                                                    {createdRiskData.inherent_score}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                                        💡 Want insights on this risk? Let me help you understand its impact and suggest mitigation strategies.
+                                    </p>
+
+                                    {/* Quick Actions */}
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={() => handleQuickAction(`Analyze the risk "${createdRiskData.title}" (${createdRiskData.risk_number}) and provide insights on its impact, potential consequences, and recommended mitigation strategies based on its inherent score of ${createdRiskData.inherent_score}`)}
+                                            className="w-full px-3 py-2.5 bg-gradient-to-r from-[#036DAD] to-[#0284c7] text-white rounded-lg text-sm font-semibold hover:from-[#025a8d] hover:to-[#036DAD] transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
+                                        >
+                                            <Sparkles size={16} />
+                                            <span>Get Risk Insights</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction(`Compare the risk "${createdRiskData.title}" with similar risks in the register and show me how it ranks in terms of severity`)}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:from-purple-100 hover:to-purple-200 transition-all duration-200 flex items-center gap-2 border border-purple-200"
+                                        >
+                                            <TrendingUp size={16} />
+                                            <span>Compare with Similar Risks</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction(`What are the best practices for managing ${createdRiskData.category_name || 'this type of'} risk? Provide actionable recommendations.`)}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-lg text-sm font-medium hover:from-green-100 hover:to-green-200 transition-all duration-200 flex items-center gap-2 border border-green-200"
+                                        >
+                                            <FileText size={16} />
+                                            <span>Best Practices</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleQuickAction("Show me an updated overview of all my risks including the one I just created")}
+                                            className="w-full px-3 py-2 bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:from-orange-100 hover:to-orange-200 transition-all duration-200 flex items-center gap-2 border border-orange-200"
+                                        >
+                                            <AlertCircle size={16} />
+                                            <span>Updated Risk Overview</span>
                                         </button>
                                     </div>
                                 </>
@@ -1145,7 +1303,54 @@ export default function Chatbot() {
                                                         : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-200'
                                                 }`}
                                             >
-                                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                                {message.role === 'assistant' ? (
+                                                    <div className="text-sm space-y-3">
+                                                        {message.content.split('\n').map((line, idx) => {
+                                                            // Heading
+                                                            if (line.startsWith('### ')) {
+                                                                return (
+                                                                    <h3 key={idx} className="font-bold text-[15px] text-gray-900 mt-4 mb-2 first:mt-0">
+                                                                        {line.replace(/^###\s*/, '')}
+                                                                    </h3>
+                                                                );
+                                                            }
+                                                            // Bold text
+                                                            if (line.includes('**')) {
+                                                                const parts = line.split(/\*\*([^*]+)\*\*/g);
+                                                                return (
+                                                                    <p key={idx} className="leading-relaxed">
+                                                                        {parts.map((part, i) => 
+                                                                            i % 2 === 1 ? <strong key={i} className="font-bold text-gray-900">{part}</strong> : part
+                                                                        )}
+                                                                    </p>
+                                                                );
+                                                            }
+                                                            // List items
+                                                            if (line.trim().startsWith('- ')) {
+                                                                const text = line.replace(/^\s*-\s*/, '');
+                                                                const parts = text.split(/\*\*([^*]+)\*\*/g);
+                                                                return (
+                                                                    <div key={idx} className="flex gap-2 ml-4">
+                                                                        <span className="text-gray-600">•</span>
+                                                                        <span className="flex-1">
+                                                                            {parts.map((part, i) => 
+                                                                                i % 2 === 1 ? <strong key={i} className="font-bold text-gray-900">{part}</strong> : part
+                                                                            )}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            // Empty line
+                                                            if (!line.trim()) {
+                                                                return <div key={idx} className="h-2"></div>;
+                                                            }
+                                                            // Regular text
+                                                            return <p key={idx} className="leading-relaxed">{line}</p>;
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                                )}
                                             </div>
                                         )}
                                     </div>

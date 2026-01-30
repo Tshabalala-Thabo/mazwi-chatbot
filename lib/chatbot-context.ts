@@ -63,6 +63,41 @@ export function queryTenantData(tenantId: number, query: string) {
     
     // Risk-related queries
     if (queryLower.includes('risk')) {
+      // Check if query contains a risk number pattern (e.g., FIN-2026-027, R-2024-001)
+      const riskNumberMatch = query.match(/([A-Z]+)-(\d{4})-(\d{3})/i);
+      
+      if (riskNumberMatch) {
+        // Search for specific risk by risk_number
+        const specificRisk = db.prepare(`
+          SELECT r.*, 
+                 rc.name as category_name,
+                 rsc.name as sub_category_name,
+                 rt.name as type_name,
+                 ra.name as age_name,
+                 ro.name as origin_name,
+                 rap.name as approach_name,
+                 d.name as department_name,
+                 u.name as owner_name
+          FROM risks r
+          LEFT JOIN risk_categories rc ON r.category_id = rc.id
+          LEFT JOIN risk_sub_categories rsc ON r.sub_category_id = rsc.id
+          LEFT JOIN risk_types rt ON r.risk_type_id = rt.id
+          LEFT JOIN risk_ages ra ON r.risk_age_id = ra.id
+          LEFT JOIN risk_origins ro ON r.origin_id = ro.id
+          LEFT JOIN risk_approaches rap ON r.approach_id = rap.id
+          LEFT JOIN core_departments d ON r.department_id = d.id
+          LEFT JOIN core_users u ON r.owner_id = u.id
+          WHERE r.tenant_id = ? 
+            AND r.risk_number = ?
+            AND (r.is_archived = 0 OR r.is_archived = 0.0 OR r.is_archived IS NULL)
+        `).get(tenantId, riskNumberMatch[0]);
+        
+        if (specificRisk) {
+          results.specificRisk = specificRisk;
+        }
+      }
+      
+      // Get general risk list
       results.risks = db.prepare(`
         SELECT id, title, risk_number, inherit_risk_score, residual_score, 
                identification_date, updated_at
@@ -171,6 +206,9 @@ YOUR CAPABILITIES:
 - Suggest actions based on the data
 - Explain GRC concepts and best practices
 - **VISUALIZE DATA WITH GRAPHS** when showing statistics, trends, distributions, or comparisons
+- Search for specific risks by their risk number (e.g., FIN-2026-027, R-2024-001)
+
+IMPORTANT: When a user mentions a specific risk number (format: XXX-YYYY-NNN), the system will provide detailed information about that specific risk in the 'specificRisk' field of the context data. Always check for this field first when analyzing a particular risk.
 
 GRAPH VISUALIZATION:
 When presenting data that would benefit from visualization (statistics, comparisons, distributions, trends), you MUST include a special graph marker in your response using this EXACT format:
