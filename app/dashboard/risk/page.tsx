@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, TrendingUp, Filter, Search, Eye, X, Plus, Sparkles, HelpCircle } from 'lucide-react';
+import { Shield, AlertTriangle, TrendingUp, Filter, CheckCircle, Search, Eye, X, Plus, Sparkles, HelpCircle } from 'lucide-react';
 
 interface Risk {
   id: number;
@@ -589,8 +589,8 @@ export default function RiskManagementPage() {
                   </td>
                 </tr>
               ) : (
-                filteredRisks.map(risk => (
-                  <tr key={risk.id} className="hover:bg-gray-50 transition-colors">
+                filteredRisks.map((risk, index) => (
+                  <tr key={risk.id || risk.risk_number || `risk-${index}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-mono text-gray-900">{risk.risk_number}</span>
                     </td>
@@ -869,6 +869,115 @@ export default function RiskManagementPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                {aiAssistMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fieldLabels: Record<string, string> = {
+                        title: 'Title',
+                        description: 'Description',
+                        risk_type_id: 'Risk Type',
+                        category_id: 'Category',
+                        sub_category_id: 'Sub-Category',
+                        impact_rating_id: 'Impact Rating',
+                        likelihood_rating_id: 'Likelihood Rating',
+                        priority_id: 'Priority',
+                        risk_age_id: 'Risk Age',
+                        department_id: 'Department',
+                        owner_id: 'Owner',
+                        origin_id: 'Origin',
+                        approach_id: 'Approach',
+                        monitoring_frequency_id: 'Monitoring Frequency',
+                        identification_date: 'Identification Date',
+                        causes: 'Causes',
+                        consequences: 'Consequences'
+                      };
+
+                      const allFields = Object.entries(formData)
+                        .filter(([key, value]) => {
+                          if (key === 'causes' || key === 'consequences') {
+                            return Array.isArray(value) && value.some(v => v.trim() !== '');
+                          }
+                          return value && value !== '';
+                        })
+                        .map(([key, value]) => {
+                          const label = fieldLabels[key] || key;
+                          
+                          // Handle array fields
+                          if (key === 'causes' || key === 'consequences') {
+                            const items = (value as string[]).filter(v => v.trim() !== '');
+                            return `${label}: ${items.join(', ')}`;
+                          }
+                          
+                          // Handle dropdown fields - map IDs to names
+                          if (formOptions) {
+                            if (key === 'risk_type_id') {
+                              const item = formOptions.types?.find((t: any) => t.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'category_id') {
+                              const item = formOptions.categories?.find((c: any) => c.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'sub_category_id') {
+                              const item = formOptions.subCategories?.find((sc: any) => sc.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'impact_rating_id') {
+                              const item = formOptions.impactLevels?.find((ir: any) => ir.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'likelihood_rating_id') {
+                              const item = formOptions.likelihoodLevels?.find((lr: any) => lr.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'priority_id') {
+                              const item = formOptions.priorities?.find((p: any) => p.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'risk_age_id') {
+                              const item = formOptions.ages?.find((ra: any) => ra.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'department_id') {
+                              const item = formOptions.departments?.find((d: any) => d.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'owner_id') {
+                              const item = formOptions.users?.find((o: any) => o.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'origin_id') {
+                              const item = formOptions.origins?.find((o: any) => o.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'approach_id') {
+                              const item = formOptions.approaches?.find((a: any) => a.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                            if (key === 'monitoring_frequency_id') {
+                              const item = formOptions.monitoringFrequencies?.find((mf: any) => mf.id === parseInt(value as string));
+                              return `${label}: ${item?.name || value}`;
+                            }
+                          }
+                          
+                          return `${label}: ${value}`;
+                        })
+                        .join('\n');
+                      
+                      const query = `Please review my entire risk form submission and provide comprehensive feedback:\n\n${allFields}\n\nPlease check for:\n- Completeness and clarity\n- Consistency across fields\n- Appropriate risk ratings\n- Any missing critical information\n- Suggestions for improvement`;
+                      
+                      const aiAssistEvent = new CustomEvent('aiFieldAssist', {
+                        detail: { query, fieldName: 'entire_form', fieldLabel: 'Entire Form' }
+                      });
+                      window.dispatchEvent(aiAssistEvent);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md"
+                  >
+                    <CheckCircle size={18} />
+                    <span className="text-sm font-medium">Review Form</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setAiAssistMode(!aiAssistMode)}
@@ -1177,9 +1286,17 @@ export default function RiskManagementPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Ownership & Management</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Department <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Department <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('department_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('department_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.department_id}
@@ -1194,9 +1311,17 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Risk Owner <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Risk Owner <span className="text-red-500">*</span>
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('owner_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('owner_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         required
                         value={formData.owner_id}
@@ -1213,9 +1338,17 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Origin
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Origin
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('origin_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('origin_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.origin_id}
                         onChange={(e) => handleInputChange('origin_id', e.target.value)}
@@ -1229,9 +1362,17 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Risk Approach
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Risk Approach
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('approach_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('approach_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.approach_id}
                         onChange={(e) => handleInputChange('approach_id', e.target.value)}
@@ -1245,9 +1386,17 @@ export default function RiskManagementPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Monitoring Frequency
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Monitoring Frequency
+                        </label>
+                        {aiAssistMode && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => handleAiFieldAssist('monitoring_frequency_id', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                            <button type="button" onClick={() => handleAiFieldAssist('monitoring_frequency_id', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                          </div>
+                        )}
+                      </div>
                       <select
                         value={formData.monitoring_frequency_id}
                         onChange={(e) => handleInputChange('monitoring_frequency_id', e.target.value)}
@@ -1264,7 +1413,15 @@ export default function RiskManagementPage() {
 
                 {/* Causes */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Root Causes</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Root Causes</h3>
+                    {aiAssistMode && (
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => handleAiFieldAssist('causes', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                        <button type="button" onClick={() => handleAiFieldAssist('causes', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {formData.causes.map((cause, index) => (
                       <div key={index} className="flex gap-2">
@@ -1298,7 +1455,15 @@ export default function RiskManagementPage() {
 
                 {/* Consequences */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Potential Consequences</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Potential Consequences</h3>
+                    {aiAssistMode && (
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => handleAiFieldAssist('consequences', 'explain')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="What's this?"><HelpCircle size={16} /></button>
+                        <button type="button" onClick={() => handleAiFieldAssist('consequences', 'suggest')} className="p-1 text-gray-500 hover:text-[#036DAD] hover:bg-blue-50 rounded transition-colors" title="Get suggestions"><Sparkles size={16} /></button>
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {formData.consequences.map((consequence, index) => (
                       <div key={index} className="flex gap-2">
