@@ -35,7 +35,7 @@ export async function GET() {
     `).all(user.tenant_id);
 
     // Get tenant info
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(user.tenant_id);
+    const tenant = db.prepare('SELECT * FROM core_tenants WHERE id = ?').get(user.tenant_id);
 
     return NextResponse.json({
       stats: {

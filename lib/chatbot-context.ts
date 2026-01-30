@@ -12,7 +12,7 @@ export function getTenantData(tenantId: number) {
   
   try {
     // Get tenant info
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+    const tenant = db.prepare('SELECT * FROM core_tenants WHERE id = ?').get(tenantId);
     
     // Get statistics across all modules
     const stats = {

@@ -14,7 +14,7 @@ export async function verifyCredentials(email: string, password: string): Promis
     
     // For demo purposes, we'll accept any user from the database with a simple password check
     // In production, you'd have proper password hashing
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+    const user = db.prepare('SELECT * FROM core_users WHERE email = ?').get(email) as User | undefined;
     
     if (!user) {
       return null;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2, Maximize2, Minimize2, History, MessageSquare, Plus } from 'lucide-react';
 import ChatGraph from './ChatGraph';
 
 interface GraphData {
@@ -17,8 +17,18 @@ interface Message {
   graphs?: GraphData[];
 }
 
+interface Conversation {
+  id: string;
+  title: string;
+  timestamp: Date;
+  preview: string;
+}
+
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [showHistoryPopover, setShowHistoryPopover] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string>('current');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +37,40 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Dummy conversation history
+  const [conversations] = useState<Conversation[]>([
+    {
+      id: 'current',
+      title: 'Current Conversation',
+      timestamp: new Date(),
+      preview: 'Active conversation'
+    },
+    {
+      id: '1',
+      title: 'Risk Analysis Discussion',
+      timestamp: new Date(Date.now() - 86400000),
+      preview: 'What are my critical risks?'
+    },
+    {
+      id: '2',
+      title: 'Compliance Status Review',
+      timestamp: new Date(Date.now() - 172800000),
+      preview: 'Show me our compliance status'
+    },
+    {
+      id: '3',
+      title: 'Asset Management Query',
+      timestamp: new Date(Date.now() - 259200000),
+      preview: 'How many assets do we have?'
+    },
+    {
+      id: '4',
+      title: 'Incident Report Summary',
+      timestamp: new Date(Date.now() - 345600000),
+      preview: 'Show me recent incidents'
+    }
+  ]);
 
   // Toggle between animated and static icon
   useEffect(() => {
@@ -174,7 +218,7 @@ export default function Chatbot() {
   return (
     <>
       {/* Chatbot Icon Button */}
-      <div className="fixed bottom-6 right-6 z-50 w-16 h-16">
+      <div className="fixed bottom-6 right-6 z-[60] w-16 h-16">
         {/* Pulsing ring effect */}
         {isPulsing && (
           <div className="absolute inset-0 w-16 h-16 rounded-full animate-pulse-ring" />
@@ -183,7 +227,7 @@ export default function Chatbot() {
         <button
           onClick={() => setIsOpen(!isOpen)}
           onMouseEnter={handleMouseEnter}
-          className="relative w-16 h-16 rounded-full shadow-2xl transition-shadow duration-200 focus:outline-none focus:ring-4 focus:ring-[#036DAD]/50 hover:shadow-3xl"
+          className="relative w-16 h-16 bg-white rounded-full shadow-2xl transition-shadow duration-200 focus:outline-none focus:ring-4 focus:ring-[#036DAD]/50 hover:shadow-3xl"
           aria-label="Open chatbot"
         >
           <Image
@@ -220,30 +264,140 @@ export default function Chatbot() {
 
       {/* Chatbot Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-[#036DAD] to-[#024d7a] text-white p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/mazwi-static.png"
-                alt="Mazwi"
-                width={40}
-                height={40}
-                className="rounded-full border-2 bg-amber-50 border-white"
-              />
-              <div>
-                <h3 className="font-bold text-lg">Mazwi</h3>
-                <p className="text-xs text-blue-100">ProSuite GRC Assistant</p>
+        <div className={`fixed z-50 bg-white rounded-2xl shadow-2xl flex border border-gray-200 overflow-hidden transition-all duration-300 ${
+          isMaximized 
+            ? 'top-4 left-4 right-4 bottom-24' 
+            : 'bottom-24 right-6 w-96 h-[600px]'
+        }`}>
+          {/* History Sidebar (visible when maximized) */}
+          {isMaximized && (
+            <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
+              {/* History Header */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <History size={18} />
+                    History
+                  </h3>
+                  <button
+                    onClick={() => {/* New conversation */}}
+                    className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+                    aria-label="New conversation"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Conversation List */}
+              <div className="flex-1 overflow-y-auto">
+                {conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => setCurrentConversationId(conv.id)}
+                    className={`w-full text-left p-3 border-b border-gray-200 hover:bg-gray-100 transition-colors ${
+                      currentConversationId === conv.id ? 'bg-blue-50 border-l-4 border-l-[#036DAD]' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <MessageSquare size={16} className="mt-1 flex-shrink-0 text-gray-500" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {conv.timestamp.toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-              aria-label="Close chatbot"
-            >
-              <X size={24} />
-            </button>
-          </div>
+          )}
+          
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#036DAD] to-[#024d7a] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* History button (only in normal mode) */}
+                {!isMaximized && (
+                  <button
+                    onClick={() => setShowHistoryPopover(!showHistoryPopover)}
+                    className="p-1 hover:bg-white/20 rounded-lg transition-colors relative"
+                    aria-label="Show history"
+                  >
+                    <History size={20} />
+                  </button>
+                )}
+                
+                <Image
+                  src="/mazwi-static.png"
+                  alt="Mazwi"
+                  width={40}
+                  height={40}
+                  className="rounded-full border-2 bg-amber-50 border-white"
+                />
+                <div>
+                  <h3 className="font-bold text-lg">Mazwi</h3>
+                  <p className="text-xs text-blue-100">ProSuite GRC Assistant</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label={isMaximized ? "Minimize chatbot" : "Maximize chatbot"}
+                >
+                  {isMaximized ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Close chatbot"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+            
+            {/* History Popover (visible in normal mode when toggled) */}
+            {!isMaximized && showHistoryPopover && (
+              <div className="absolute top-16 left-4 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-10 max-h-96 overflow-hidden flex flex-col">
+                <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <History size={16} />
+                    History
+                  </h3>
+                  <button
+                    onClick={() => setShowHistoryPopover(false)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="overflow-y-auto">
+                  {conversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        setCurrentConversationId(conv.id);
+                        setShowHistoryPopover(false);
+                      }}
+                      className={`w-full text-left p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                        currentConversationId === conv.id ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {conv.timestamp.toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
@@ -301,30 +455,31 @@ export default function Chatbot() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-gray-200 bg-white">
-            <div className="flex gap-2 text-gray-600">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your GRC data..."
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#036DAD] focus:border-transparent outline-none text-sm"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="bg-[#036DAD] text-white p-3 rounded-xl hover:bg-[#025a8f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Send message"
-              >
-                <Send size={20} />
-              </button>
+            {/* Input */}
+            <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="flex gap-2 text-gray-600">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me anything about your GRC data..."
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#036DAD] focus:border-transparent outline-none text-sm"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  className="bg-[#036DAD] text-white p-3 rounded-xl hover:bg-[#025a8f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Send message"
+                >
+                  <Send size={20} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Powered by OpenAI • Tenant-aware responses
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              Powered by OpenAI • Tenant-aware responses
-            </p>
           </div>
         </div>
       )}
