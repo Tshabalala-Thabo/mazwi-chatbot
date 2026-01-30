@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const db = getDb();
-    const modules = db.prepare('SELECT * FROM modules WHERE is_disable = 0 ORDER BY id').all();
+    const modules = db.prepare('SELECT * FROM core_modules WHERE is_disable = 0 ORDER BY id').all();
 
     return NextResponse.json({ modules });
   } catch (error) {

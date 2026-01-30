@@ -200,10 +200,8 @@ interface StatCardProps {
 function StatCard({ icon: Icon, title, value, color, iconColor }: StatCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 rounded-lg ${color} bg-opacity-10 flex items-center justify-center`}>
-          <Icon className={iconColor} size={24} />
-        </div>
+      <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center mb-4`}>
+        <Icon className="text-white" size={24} />
       </div>
       <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
       <p className="text-3xl font-bold text-gray-900">{value}</p>

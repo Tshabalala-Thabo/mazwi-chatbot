@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { X, Send, Loader2, Maximize2, Minimize2, History, MessageSquare, Plus } from 'lucide-react';
+import { X, Send, Loader2, Maximize2, Minimize2, History, MessageSquare, Plus, Trash2 } from 'lucide-react';
 import ChatGraph from './ChatGraph';
 
 interface GraphData {
@@ -22,6 +22,7 @@ interface Conversation {
   title: string;
   timestamp: Date;
   preview: string;
+  messages: Message[];
 }
 
 export default function Chatbot() {
@@ -30,6 +31,7 @@ export default function Chatbot() {
   const [showHistoryPopover, setShowHistoryPopover] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string>('current');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAnimated, setIsAnimated] = useState(false);
@@ -38,39 +40,143 @@ export default function Chatbot() {
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Dummy conversation history
-  const [conversations] = useState<Conversation[]>([
-    {
-      id: 'current',
-      title: 'Current Conversation',
-      timestamp: new Date(),
-      preview: 'Active conversation'
-    },
-    {
-      id: '1',
-      title: 'Risk Analysis Discussion',
-      timestamp: new Date(Date.now() - 86400000),
-      preview: 'What are my critical risks?'
-    },
-    {
-      id: '2',
-      title: 'Compliance Status Review',
-      timestamp: new Date(Date.now() - 172800000),
-      preview: 'Show me our compliance status'
-    },
-    {
-      id: '3',
-      title: 'Asset Management Query',
-      timestamp: new Date(Date.now() - 259200000),
-      preview: 'How many assets do we have?'
-    },
-    {
-      id: '4',
-      title: 'Incident Report Summary',
-      timestamp: new Date(Date.now() - 345600000),
-      preview: 'Show me recent incidents'
+  // Load conversations from localStorage on mount
+  useEffect(() => {
+    const savedConversations = localStorage.getItem('mazwi_conversations');
+    if (savedConversations) {
+      try {
+        const parsed = JSON.parse(savedConversations);
+        // Convert timestamp strings back to Date objects
+        const conversationsWithDates = parsed.map((conv: any) => ({
+          ...conv,
+          timestamp: new Date(conv.timestamp)
+        }));
+        setConversations(conversationsWithDates);
+        
+        // Load the most recent conversation (first in array)
+        if (conversationsWithDates.length > 0) {
+          const mostRecentConv = conversationsWithDates[0];
+          setCurrentConversationId(mostRecentConv.id);
+          setMessages(mostRecentConv.messages || []);
+        }
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+        initializeConversations();
+      }
+    } else {
+      initializeConversations();
     }
-  ]);
+  }, []);
+  
+  // Initialize with a default conversation
+  const initializeConversations = () => {
+    const defaultConversation: Conversation = {
+      id: 'current',
+      title: 'New Conversation',
+      timestamp: new Date(),
+      preview: 'Start chatting...',
+      messages: []
+    };
+    setConversations([defaultConversation]);
+    saveConversationsToStorage([defaultConversation]);
+  };
+  
+  // Save conversations to localStorage
+  const saveConversationsToStorage = (convs: Conversation[]) => {
+    try {
+      localStorage.setItem('mazwi_conversations', JSON.stringify(convs));
+    } catch (error) {
+      console.error('Error saving conversations:', error);
+    }
+  };
+  
+  // Save current conversation whenever messages change
+  useEffect(() => {
+    if (conversations.length > 0) {
+      const updatedConversations = conversations.map(conv => {
+        if (conv.id === currentConversationId) {
+          // Generate title from first user message if not set
+          let title = conv.title;
+          let preview = conv.preview;
+          
+          if (messages.length > 0 && (title === 'New Conversation' || title === 'Current Conversation')) {
+            const firstUserMessage = messages.find(m => m.role === 'user');
+            if (firstUserMessage) {
+              title = firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '');
+              preview = firstUserMessage.content.substring(0, 100);
+            }
+          }
+          
+          return {
+            ...conv,
+            title,
+            preview,
+            messages,
+            timestamp: new Date()
+          };
+        }
+        return conv;
+      });
+      
+      setConversations(updatedConversations);
+      saveConversationsToStorage(updatedConversations);
+    }
+  }, [messages]);
+  
+  // Create new conversation
+  const createNewConversation = () => {
+    // Don't create new conversation if current one is empty
+    const currentConv = conversations.find(c => c.id === currentConversationId);
+    if (currentConv && currentConv.messages.length === 0) {
+      // Current conversation is empty, don't create a new one
+      return;
+    }
+    
+    const newConv: Conversation = {
+      id: Date.now().toString(),
+      title: 'New Conversation',
+      timestamp: new Date(),
+      preview: 'Start chatting...',
+      messages: []
+    };
+    
+    const updatedConversations = [newConv, ...conversations];
+    setConversations(updatedConversations);
+    setCurrentConversationId(newConv.id);
+    setMessages([]);
+    saveConversationsToStorage(updatedConversations);
+  };
+  
+  // Switch conversation
+  const switchConversation = (convId: string) => {
+    const conv = conversations.find(c => c.id === convId);
+    if (conv) {
+      setCurrentConversationId(convId);
+      setMessages(conv.messages || []);
+    }
+  };
+  
+  // Delete conversation
+  const deleteConversation = (convId: string, e?: React.MouseEvent) => {
+    // Prevent triggering parent click event
+    e?.stopPropagation();
+    
+    // Don't allow deleting if it's the only conversation
+    if (conversations.length <= 1) {
+      return;
+    }
+    
+    const updatedConversations = conversations.filter(c => c.id !== convId);
+    setConversations(updatedConversations);
+    saveConversationsToStorage(updatedConversations);
+    
+    // If deleting current conversation, switch to the first one
+    if (convId === currentConversationId) {
+      const firstConv = updatedConversations[0];
+      setCurrentConversationId(firstConv.id);
+      setMessages(firstConv.messages || []);
+    }
+  };
 
   // Toggle between animated and static icon
   useEffect(() => {
@@ -280,7 +386,7 @@ export default function Chatbot() {
                     History
                   </h3>
                   <button
-                    onClick={() => {/* New conversation */}}
+                    onClick={createNewConversation}
                     className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
                     aria-label="New conversation"
                   >
@@ -292,24 +398,37 @@ export default function Chatbot() {
               {/* Conversation List */}
               <div className="flex-1 overflow-y-auto">
                 {conversations.map((conv) => (
-                  <button
+                  <div
                     key={conv.id}
-                    onClick={() => setCurrentConversationId(conv.id)}
-                    className={`w-full text-left p-3 border-b border-gray-200 hover:bg-gray-100 transition-colors ${
+                    className={`relative group border-b border-gray-200 ${
                       currentConversationId === conv.id ? 'bg-blue-50 border-l-4 border-l-[#036DAD]' : ''
                     }`}
                   >
-                    <div className="flex items-start gap-2">
-                      <MessageSquare size={16} className="mt-1 flex-shrink-0 text-gray-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
-                        <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {conv.timestamp.toLocaleDateString()}
-                        </p>
+                    <button
+                      onClick={() => switchConversation(conv.id)}
+                      className="w-full text-left p-3 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <MessageSquare size={16} className="mt-1 flex-shrink-0 text-gray-500" />
+                        <div className="flex-1 min-w-0 pr-8">
+                          <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {conv.timestamp.toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    {conversations.length > 1 && (
+                      <button
+                        onClick={(e) => deleteConversation(conv.id, e)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded transition-all text-red-600"
+                        aria-label="Delete conversation"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -345,6 +464,16 @@ export default function Chatbot() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={createNewConversation}
+                  className={`flex items-center gap-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors ${
+                    isMaximized ? 'px-3 py-1.5 text-sm font-medium' : 'p-1'
+                  }`}
+                  aria-label="New chat"
+                >
+                  <Plus size={isMaximized ? 16 : 20} />
+                  {isMaximized && <span>New Chat</span>}
+                </button>
+                <button
                   onClick={() => setIsMaximized(!isMaximized)}
                   className="p-1 hover:bg-white/20 rounded-lg transition-colors"
                   aria-label={isMaximized ? "Minimize chatbot" : "Maximize chatbot"}
@@ -378,22 +507,37 @@ export default function Chatbot() {
                 </div>
                 <div className="overflow-y-auto">
                   {conversations.map((conv) => (
-                    <button
+                    <div
                       key={conv.id}
-                      onClick={() => {
-                        setCurrentConversationId(conv.id);
-                        setShowHistoryPopover(false);
-                      }}
-                      className={`w-full text-left p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                      className={`relative group border-b border-gray-100 ${
                         currentConversationId === conv.id ? 'bg-blue-50' : ''
                       }`}
                     >
-                      <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
-                      <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {conv.timestamp.toLocaleDateString()}
-                      </p>
-                    </button>
+                      <button
+                        onClick={() => {
+                          switchConversation(conv.id);
+                          setShowHistoryPopover(false);
+                        }}
+                        className="w-full text-left p-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="pr-8">
+                          <p className="font-medium text-sm text-gray-900 truncate">{conv.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{conv.preview}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {conv.timestamp.toLocaleDateString()}
+                          </p>
+                        </div>
+                      </button>
+                      {conversations.length > 1 && (
+                        <button
+                          onClick={(e) => deleteConversation(conv.id, e)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded transition-all text-red-600"
+                          aria-label="Delete conversation"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
