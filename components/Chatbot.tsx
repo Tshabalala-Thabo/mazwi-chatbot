@@ -190,7 +190,7 @@ export default function Chatbot() {
                 alt="Mazwi"
                 width={40}
                 height={40}
-                className="rounded-full border-2 border-white"
+                className="rounded-full border-2 bg-amber-50 border-white"
               />
               <div>
                 <h3 className="font-bold text-lg">Mazwi</h3>
@@ -241,7 +241,7 @@ export default function Chatbot() {
 
           {/* Input */}
           <div className="p-4 border-t border-gray-200 bg-white">
-            <div className="flex gap-2">
+            <div className="flex gap-2 text-gray-600">
               <input
                 type="text"
                 value={input}
